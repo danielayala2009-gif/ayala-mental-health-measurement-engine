@@ -51,3 +51,5 @@ This repository is an educational/research prototype, not a diagnostic tool or m
 - Evidence/provenance panel for every calculation
 - Export/import and audit trail
 - Separate direct-assessment safety workflow
+
+Deployment initialized.
