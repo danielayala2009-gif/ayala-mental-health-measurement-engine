@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ayala Mental Health Measurement Engine</title>
+<style>
+:root{--bg:#f5f7fa;--card:#fff;--ink:#18212b;--muted:#5c6875;--line:#d9e0e7;--accent:#315b78;--warn:#7b2d2d}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:var(--card);border-bottom:1px solid var(--line);padding:28px 20px}header>div,main{max-width:1180px;margin:auto}h1{margin:0 0 8px;font-size:clamp(1.7rem,4vw,2.5rem)}
+.subtitle{color:var(--muted);max-width:850px}.notice{background:#fff;border:1px solid var(--line);border-left:5px solid var(--warn);border-radius:10px;padding:15px;margin:20px 0}.controls{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}.controls input,.controls select{padding:10px;border:1px solid var(--line);border-radius:8px;background:#fff}.controls input{flex:1;min-width:220px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}.card{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:16px}.card h3{margin:8px 0 5px;font-size:1.02rem}.small{font-size:.88rem;color:var(--muted)}.tag{display:inline-block;font-size:.74rem;border:1px solid var(--line);border-radius:999px;padding:3px 7px;margin:0 4px 4px 0}.score{display:flex;align-items:center;gap:8px;margin-top:12px}.score input{width:105px;padding:8px;border:1px solid var(--line);border-radius:7px}button{padding:10px 14px;border:0;border-radius:8px;background:var(--accent);color:#fff;cursor:pointer}button.secondary{background:#687582}#profile{white-space:pre-wrap;background:#fff;border:1px solid var(--line);border-radius:12px;padding:17px;min-height:110px;margin-bottom:30px}.rights{margin-top:8px;font-size:.8rem;color:var(--muted)}footer{padding:20px;text-align:center;color:var(--muted);font-size:.8rem}
+</style>
+</head>
+<body>
+<header><div><h1>Ayala Mental Health Measurement Engine</h1><div class="subtitle">Research and clinical decision-support prototype integrating 17 mental-health measures within an IMV-informed framework. Version 0.1.</div></div></header>
+<main>
+<div class="notice"><b>Safety architecture:</b> This prototype does not diagnose, calculate a suicide probability, or declare a person “safe” or “low risk.” Current suicidal ideation, intent, planning, or recent suicidal behavior requires direct human assessment according to applicable clinical/emergency protocol.</div>
+<h2>Instrument Registry</h2>
+<div class="controls"><input id="search" placeholder="Search measures or constructs…"><select id="stage"><option value="">All IMV stages</option></select></div>
+<div id="cards" class="grid"></div>
+<h2>Structured Profile</h2>
+<p class="small">Enter available total scores. The engine preserves instrument-specific results and theoretical domains rather than creating an unsupported combined suicide-risk percentage.</p>
+<div class="controls"><button id="build">Build profile</button><button id="clear" class="secondary">Clear scores</button></div>
+<div id="profile">No scores entered yet.</div>
+<div class="notice"><b>Copyright guardrail:</b> Licensed or restricted questionnaire wording is intentionally not embedded. Item-level administration will only be added after the exact instrument version and reproduction rights are documented.</div>
+</main><footer>Educational/research prototype • Not a medical device • v0.1</footer>
+<script>
+let instruments=[];
+const ranges={bssi:[0,38],bdi2:[0,63],pss4:[0,16],wemwbs:[14,70],defeat:[0,64],entrapment:[0,64],lotr:[0,24],cdrisc10:[0,40],bis11:[30,120]};
+const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
+function bdi(v){return v<=13?'minimal':v<=19?'mild':v<=28?'moderate':'severe'}
+async function init(){instruments=await fetch('data/instruments.json').then(r=>r.json());const stages=[...new Set(instruments.map(x=>x.stage))].sort();const sel=document.getElementById('stage');stages.forEach(s=>sel.insertAdjacentHTML('beforeend',`<option>${esc(s)}</option>`));render();}
+function render(){const q=document.getElementById('search').value.toLowerCase(),stage=document.getElementById('stage').value;const root=document.getElementById('cards');root.innerHTML='';instruments.filter(x=>(!stage||x.stage===stage)&&(!q||(`${x.name} ${x.construct}`).toLowerCase().includes(q))).forEach(x=>{const r=ranges[x.id];const d=document.createElement('div');d.className='card';d.innerHTML=`<span class="tag">${esc(x.stage)}</span><h3>${esc(x.name)}</h3><div class="small">${esc(x.construct)}</div><p><b>Expected range:</b> ${esc(x.range)}</p><p>${esc(x.note)}</p><div class="rights"><b>Rights:</b> ${esc(x.rights)}</div><div class="score"><label for="s_${x.id}">Score:</label><input id="s_${x.id}" type="number" step="any" ${r?`min="${r[0]}" max="${r[1]}"`:''}></div>`;root.appendChild(d);});}
+function profile(){const groups={};let concern=false,entered=0;instruments.forEach(x=>{const el=document.getElementById('s_'+x.id);if(!el||el.value==='')return;entered++;const v=Number(el.value);let line=`• ${x.name}: ${v}`;const r=ranges[x.id];if(r&&(v<r[0]||v>r[1]))line+=' — VALUE OUTSIDE EXPECTED RANGE';if(x.id==='bdi2')line+=` — ${bdi(v)} depressive symptom range`;if(x.id==='bssi'&&v>0){line+=' — current ideation signal: direct assessment required';concern=true;}if(x.id==='apms_history'&&v>0){line+=' — suicide-history signal present';concern=true;}(groups[x.stage]??=[]).push(line);});let out=[];if(!entered){document.getElementById('profile').textContent='No scores entered yet.';return;}if(concern)out.push('⚠ CLINICAL CONCERN SIGNAL\nDirect suicide-safety assessment is required. Questionnaire totals are not sufficient to determine safety.\n');Object.entries(groups).forEach(([k,v])=>{out.push(k.toUpperCase());out.push(...v);out.push('');});out.push('Interpretation rule: v0.1 does not calculate a cross-instrument suicide probability. Scores remain instrument-specific and are mapped to theoretical domains only.');document.getElementById('profile').textContent=out.join('\n');}
+function clearScores(){document.querySelectorAll('.score input').forEach(x=>x.value='');document.getElementById('profile').textContent='No scores entered yet.';}
+document.getElementById('search').addEventListener('input',render);document.getElementById('stage').addEventListener('change',render);document.getElementById('build').addEventListener('click',profile);document.getElementById('clear').addEventListener('click',clearScores);init();
+</script>
+</body></html>
