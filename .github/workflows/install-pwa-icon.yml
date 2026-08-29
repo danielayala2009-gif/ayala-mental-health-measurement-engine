@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install cairosvg
-      - name: Build PNG icons, wire PWA metadata, research mode, and sync app version
+      - name: Build PNG icons, wire PWA metadata, research mode, simulation lab, and sync app version
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -23,25 +23,22 @@ jobs:
           svg=Path('icon.svg').read_bytes()
           cairosvg.svg2png(bytestring=svg,write_to='icon-192.png',output_width=192,output_height=192)
           cairosvg.svg2png(bytestring=svg,write_to='icon-512.png',output_width=512,output_height=512)
-          p=Path('index.html')
-          s=p.read_text()
+          p=Path('index.html'); s=p.read_text()
           marker='<title>Ayala Mental Health Measurement Engine</title>'
           links=marker+'<link rel="manifest" href="./manifest.webmanifest?v=2"><link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png?v=2"><link rel="apple-touch-icon" href="./icon-192.png?v=2"><meta name="theme-color" content="#0b3150">'
-          if 'rel="manifest"' not in s:
-              s=s.replace(marker,links,1)
-          if './data/research_mode.js' not in s:
-              s=s.replace('</body>','<script src="./data/research_mode.js?v=100rc1"></script></body>',1)
-          if "serviceWorker.register" not in s:
-              s=s.replace('</body>',"<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));}</script></body>",1)
+          if 'rel="manifest"' not in s: s=s.replace(marker,links,1)
+          if './data/research_mode.js' not in s: s=s.replace('</body>','<script src="./data/research_mode.js?v=100rc1"></script></body>',1)
+          if './data/simulation_lab.js' not in s: s=s.replace('</body>','<script src="./data/simulation_lab.js?v=100rc2"></script></body>',1)
+          if "serviceWorker.register" not in s: s=s.replace('</body>',"<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));}</script></body>",1)
           p.write_text(s)
           manifest={'name':'Ayala Mental Health Measurement Engine','short_name':'Ayala MH','description':'Unified participant and researcher mental health measurement workspace.','id':'./','start_url':'./?source=pwa','scope':'./','display':'standalone','background_color':'#06142d','theme_color':'#0b3150','icons':[{'src':'./icon-192.png','sizes':'192x192','type':'image/png','purpose':'any maskable'},{'src':'./icon-512.png','sizes':'512x512','type':'image/png','purpose':'any maskable'}]}
           Path('manifest.webmanifest').write_text(json.dumps(manifest,separators=(',',':')))
-          Path('sw.js').write_text("const C='ayala-mh-v4';self.addEventListener('install',e=>self.skipWaiting());self.addEventListener('activate',e=>e.waitUntil(clients.claim()));self.addEventListener('fetch',()=>{});")
+          Path('sw.js').write_text("const C='ayala-mh-v5';self.addEventListener('install',e=>self.skipWaiting());self.addEventListener('activate',e=>e.waitUntil(clients.claim()));self.addEventListener('fetch',()=>{});")
           PY
       - name: Commit generated PWA assets
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add index.html manifest.webmanifest sw.js icon-192.png icon-512.png
-          git commit -m 'Wire separated research data mode' || exit 0
+          git commit -m 'Install visible Ayala Simulation Lab' || exit 0
           git push
